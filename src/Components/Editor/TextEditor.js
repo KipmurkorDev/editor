@@ -2,9 +2,9 @@ import React, { useState } from "react";
 import {
   Editor,
   EditorState,
-  RichUtils,
   convertToRaw,
   convertFromRaw,
+  Modifier,
 } from "draft-js";
 import "draft-js/dist/Draft.css";
 import "./TextEditor.css";
@@ -20,82 +20,63 @@ const TextEditor = () => {
     }
   });
 
-  const onChange = (newState) => {
-    let updatedEditorState = newState;
+  const applyStyleToBlock = (block, prefix, styleClass) => {
+    const text = block.getText();
+    const blockKey = block.getKey();
 
+    if (text.startsWith(prefix) && text.length + 1 > prefix.length) {
+      const currentClasses = block.getData().get("classes", new Set());
+      const newClasses = new Set([...currentClasses, styleClass]);
+
+      return block
+        .set("text", text.slice(prefix.length))
+        .setIn(["data", "classes"], newClasses);
+    }
+
+    return block;
+  };
+
+  const updateBlockWithStyle = (contentState, block, prefix, styleClass) => {
+    const blockKey = block.getKey();
+
+    const updatedBlock = applyStyleToBlock(block, prefix, styleClass);
+
+    const newContentState = contentState.merge({
+      blockMap: contentState.getBlockMap().set(blockKey, updatedBlock),
+    });
+
+    return newContentState;
+  };
+
+  const onChange = (newState) => {
     const contentState = newState.getCurrentContent();
     const blocks = contentState.getBlocksAsArray();
 
+    let updatedEditorState = newState;
+
     blocks.forEach((block) => {
-      const text = block.getText();
-      const blockKey = block.getKey();
-
-      if (text.startsWith("# ")) {
-        updatedEditorState = RichUtils.toggleBlockType(
-          updatedEditorState,
-          "header-one"
-        );
-
-        const newContentState = contentState.merge({
-          blockMap: contentState
-            .getBlockMap()
-            .set(blockKey, block.set("text", text.substring(2))),
-        });
-
+      if (block.getText().startsWith("# ")) {
         updatedEditorState = EditorState.push(
           updatedEditorState,
-          newContentState,
+          updateBlockWithStyle(contentState, block, "# ", "header-one"),
           "change-block-data"
         );
-      } else if (text.startsWith("* ")) {
-        updatedEditorState = RichUtils.toggleInlineStyle(
-          updatedEditorState,
-          "BOLD"
-        );
-
-        const newContentState = contentState.merge({
-          blockMap: contentState
-            .getBlockMap()
-            .set(blockKey, block.set("text", text.substring(2))),
-        });
-
+      } else if (block.getText().startsWith("* ")) {
         updatedEditorState = EditorState.push(
           updatedEditorState,
-          newContentState,
+          updateBlockWithStyle(contentState, block, "* ", "BOLD"),
           "change-block-data"
         );
-      } else if (text.startsWith("** ")) {
-        updatedEditorState = RichUtils.toggleInlineStyle(
-          updatedEditorState,
-          "STRIKETHROUGH"
-        );
-
-        const newContentState = contentState.merge({
-          blockMap: contentState
-            .getBlockMap()
-            .set(blockKey, block.set("text", text.substring(3))),
-        });
-
+      } else if (block.getText().startsWith("** ")) {
         updatedEditorState = EditorState.push(
           updatedEditorState,
-          newContentState,
+          updateBlockWithStyle(contentState, block, "** ", "RED_LINE"),
           "change-block-data"
         );
-      } else if (text.startsWith("*** ")) {
-        updatedEditorState = RichUtils.toggleInlineStyle(
-          updatedEditorState,
-          "UNDERLINE"
-        );
-
-        const newContentState = contentState.merge({
-          blockMap: contentState
-            .getBlockMap()
-            .set(blockKey, block.set("text", text.substring(4))),
-        });
-
+      } else if (block.getText().startsWith("*** ")) {
         updatedEditorState = EditorState.push(
           updatedEditorState,
-          newContentState,
+          updateBlockWithStyle(contentState, block, "*** ", "UNDERLINE"),
           "change-block-data"
         );
       }
@@ -124,9 +105,15 @@ const TextEditor = () => {
           </button>
         </div>
       </div>
-
       <div className="h-3/4 border-4 border-blue-300 p-3 mt-2">
-        <Editor editorState={editorState} onChange={onChange} />
+        <Editor
+          editorState={editorState}
+          onChange={onChange}
+          blockStyleFn={(block) => {
+            const classes = [...block.getData().get("classes", [])];
+            return classes.length > 0 ? `header-one ${classes.join(" ")}` : "";
+          }}
+        />
       </div>
     </div>
   );

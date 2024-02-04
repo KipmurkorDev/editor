@@ -1,0 +1,19 @@
+
+.header-one {
+    font-size: 1.5em; 
+    font-weight: bold;
+  }
+  
+  .BOLD {
+    font-weight: bold;
+  }
+  
+  .RED_LINE {
+    text-decoration: line-through;
+    color: red;
+  }
+  
+  .UNDERLINE {
+    text-decoration: underline;
+  }
+    
